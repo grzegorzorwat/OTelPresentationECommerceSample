@@ -2,8 +2,13 @@ using Confluent.Kafka;
 using Core.Events;
 using Core.Events.External;
 using Core.Kafka.Events;
+using Core.Kafka.Producers;
+using Core.Tracing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Trace;
+using System.Diagnostics;
+using System.Text;
 
 namespace Core.Kafka.Consumers;
 
@@ -11,17 +16,19 @@ public class KafkaConsumer: IExternalEventConsumer
 {
     private readonly ILogger<KafkaConsumer> logger;
     private readonly IEventBus eventBus;
+    private readonly Tracer tracer;
     private readonly KafkaConsumerConfig config;
 
     public KafkaConsumer(
         ILogger<KafkaConsumer> logger,
         IConfiguration configuration,
-        IEventBus eventBus
+        IEventBus eventBus,
+        Tracer tracer
     )
     {
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
         this.eventBus = eventBus;
-
+        this.tracer = tracer;
         if (configuration == null)
             throw new ArgumentNullException(nameof(configuration));
 
@@ -83,6 +90,10 @@ public class KafkaConsumer: IExternalEventConsumer
 
                 return;
             }
+
+            var traceParent = Encoding.UTF8.GetString(message.Message.Headers.GetLastBytes("traceparent"));
+            using var span = tracer.StartActiveSpan(nameof(KafkaConsumer), SpanKind.Consumer,
+                TracingHelper.FromTraceparent(traceParent));
 
             // publish event to internal event bus
             await eventBus.Publish(eventEnvelope, cancellationToken);

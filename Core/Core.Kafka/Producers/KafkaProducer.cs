@@ -2,21 +2,28 @@ using Confluent.Kafka;
 using Core.Events;
 using Core.Events.External;
 using Core.Serialization.Newtonsoft;
+using Core.Tracing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Trace;
+using System.Diagnostics;
+using System.Text;
 
 namespace Core.Kafka.Producers;
 
 public class KafkaProducer: IExternalEventProducer
 {
+    private readonly Tracer tracer;
     private readonly ILogger<KafkaProducer> logger;
     private readonly KafkaProducerConfig config;
 
     public KafkaProducer(
         IConfiguration configuration,
+        Tracer tracer,
         ILogger<KafkaProducer> logger
     )
     {
+        this.tracer = tracer;
         this.logger = logger;
         // get configuration from appsettings.json
         config = configuration.GetKafkaProducerConfig();
@@ -24,6 +31,8 @@ public class KafkaProducer: IExternalEventProducer
 
     public async Task Publish(IEventEnvelope @event, CancellationToken ct)
     {
+        using var span = tracer.StartActiveSpan(nameof(KafkaProducer), SpanKind.Producer);
+
         try
         {
             using var p = new ProducerBuilder<string, string>(config.ProducerConfig).Build();
@@ -35,7 +44,11 @@ public class KafkaProducer: IExternalEventProducer
                     // store event type name in message Key
                     Key = @event.Data.GetType().Name,
                     // serialize event to message Value
-                    Value = @event.ToJson()
+                    Value = @event.ToJson(),
+                    Headers = new Headers()
+                    {
+                        new Header("traceparent", Encoding.UTF8.GetBytes(span.Context.ToTraceparent()!))
+                    }
                 }, ct).ConfigureAwait(false);
         }
         catch (Exception e)
