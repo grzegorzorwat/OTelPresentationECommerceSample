@@ -3,6 +3,7 @@ using Core.Events;
 using Core.Ids;
 using Core.Queries;
 using Core.Requests;
+using Core.Tracing;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -15,8 +16,11 @@ public static class Config
     {
         services.AddMediatR()
             .AddScoped<ICommandBus, CommandBus>()
+            .Decorate<ICommandBus, TracingCommandBusDecorator>()
             .AddScoped<IQueryBus, QueryBus>()
-            .AddEventBus();
+            .Decorate<IQueryBus, TracingQueryBusDecorator>()
+            .AddEventBus()
+            .Decorate<IEventBus, TracingEventBusDecorator>();
 
         services.TryAddScoped<IExternalCommandBus, ExternalCommandBus>();
 
