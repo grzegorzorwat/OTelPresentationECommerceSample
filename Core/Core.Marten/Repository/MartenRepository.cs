@@ -1,5 +1,6 @@
 using Core.Aggregates;
 using Marten;
+using OpenTelemetry.Trace;
 
 namespace Core.Marten.Repository;
 
@@ -29,6 +30,9 @@ public class MartenRepository<T>: IMartenRepository<T> where T : class, IAggrega
 
     public async Task<long> Add(T aggregate, CancellationToken cancellationToken = default)
     {
+        documentSession.CorrelationId = Tracer.CurrentSpan.Context.TraceId.ToString();
+        documentSession.CausationId = Tracer.CurrentSpan.Context.SpanId.ToString();
+
         var events = aggregate.DequeueUncommittedEvents();
 
         documentSession.Events.StartStream<Aggregate>(
@@ -43,6 +47,9 @@ public class MartenRepository<T>: IMartenRepository<T> where T : class, IAggrega
 
     public async Task<long> Update(T aggregate, long? expectedVersion = null, CancellationToken cancellationToken = default)
     {
+        documentSession.CorrelationId = Tracer.CurrentSpan.Context.TraceId.ToString();
+        documentSession.CausationId = Tracer.CurrentSpan.Context.SpanId.ToString();
+
         var events = aggregate.DequeueUncommittedEvents();
 
         var nextVersion = (expectedVersion ?? aggregate.Version) + events.Length;

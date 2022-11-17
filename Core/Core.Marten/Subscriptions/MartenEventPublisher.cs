@@ -1,7 +1,9 @@
 using Core.Events;
+using Core.Tracing;
 using Marten;
 using Marten.Events;
 using Microsoft.Extensions.DependencyInjection;
+using OpenTelemetry.Trace;
 
 namespace Core.Marten.Subscriptions;
 
@@ -23,6 +25,10 @@ public class MartenEventPublisher: IMartenEventsConsumer
         {
             using var scope = serviceProvider.CreateScope();
             var eventBus = scope.ServiceProvider.GetRequiredService<IEventBus>();
+            var tracer = scope.ServiceProvider.GetRequiredService<Tracer>();
+
+            using var span = tracer.StartActiveSpan(nameof(MartenEventPublisher), SpanKind.Producer,
+                TracingHelper.Parse(@event.CorrelationId, @event.CausationId));
 
             var eventMetadata = new EventMetadata(
                 @event.Id.ToString(),
