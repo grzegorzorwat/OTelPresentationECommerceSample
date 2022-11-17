@@ -2,6 +2,7 @@ using Core.Commands;
 using Core.Marten.Events;
 using Core.Marten.Repository;
 using MediatR;
+using OpenTelemetry;
 
 namespace Carts.ShoppingCarts.ConfirmingCart;
 
@@ -35,6 +36,8 @@ internal class HandleConfirmShoppingCart:
 
     public async Task<Unit> Handle(ConfirmShoppingCart command, CancellationToken cancellationToken)
     {
+        Baggage.SetBaggage("ECommerce.CartId", command.CartId.ToString());
+
         await scope.Do((expectedVersion) =>
             cartRepository.GetAndUpdate(
                 command.CartId,

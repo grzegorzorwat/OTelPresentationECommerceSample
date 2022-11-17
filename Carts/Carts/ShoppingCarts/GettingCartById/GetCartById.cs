@@ -1,5 +1,6 @@
 using Core.Queries;
 using Marten;
+using OpenTelemetry;
 
 namespace Carts.ShoppingCarts.GettingCartById;
 
@@ -28,6 +29,7 @@ internal class HandleGetCartById:
 
     public Task<ShoppingCartDetails?> Handle(GetCartById query, CancellationToken cancellationToken)
     {
+        Baggage.SetBaggage("ECommerce.CartId", query.CartId.ToString());
         return querySession.LoadAsync<ShoppingCartDetails>(query.CartId, cancellationToken);
     }
 }

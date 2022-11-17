@@ -2,6 +2,7 @@ using Core.Commands;
 using Core.Marten.Events;
 using Core.Marten.Repository;
 using MediatR;
+using OpenTelemetry;
 
 namespace Carts.ShoppingCarts.CancelingCart;
 
@@ -35,6 +36,7 @@ internal class HandleCancelShoppingCart:
 
     public async Task<Unit> Handle(CancelShoppingCart command, CancellationToken cancellationToken)
     {
+        Baggage.SetBaggage("ECommerce.CartId", command.CartId.ToString());
         await scope.Do((expectedVersion) =>
             cartRepository.GetAndUpdate(
                 command.CartId,

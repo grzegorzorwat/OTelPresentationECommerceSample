@@ -2,6 +2,7 @@ using Carts.ShoppingCarts.GettingCartById;
 using Core.Exceptions;
 using Core.Queries;
 using Marten;
+using OpenTelemetry;
 
 namespace Carts.ShoppingCarts.GettingCartAtVersion;
 
@@ -33,6 +34,7 @@ internal class HandleGetCartAtVersion :
 
     public async Task<ShoppingCartDetails> Handle(GetCartAtVersion query, CancellationToken cancellationToken)
     {
+        Baggage.SetBaggage("ECommerce.CartId", query.CartId.ToString());
         var (cartId, version) = query;
         return await querySession.Events.AggregateStreamAsync<ShoppingCartDetails>(cartId, version, token: cancellationToken)
                ?? throw AggregateNotFoundException.For<ShoppingCart>(cartId);

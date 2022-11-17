@@ -1,6 +1,7 @@
 using Core.Queries;
 using Marten;
 using Marten.Pagination;
+using OpenTelemetry;
 
 namespace Carts.ShoppingCarts.GettingCartHistory;
 
@@ -33,6 +34,7 @@ internal class HandleGetCartHistory:
 
     public Task<IPagedList<ShoppingCartHistory>> Handle(GetCartHistory query, CancellationToken cancellationToken)
     {
+        Baggage.SetBaggage("ECommerce.CartId", query.CartId.ToString());
         var (cartId, pageNumber, pageSize) = query;
 
         return querySession.Query<ShoppingCartHistory>()

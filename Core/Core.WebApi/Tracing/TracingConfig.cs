@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using OpenTelemetry;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
+using System.Diagnostics;
 using System.Reflection;
 
 namespace Core.WebApi.Tracing;
@@ -27,7 +29,18 @@ public static class TracingConfig
                 .AddConsoleExporter()
                 .AddJaegerExporter(opt => opt.Protocol = JaegerExportProtocol.HttpBinaryThrift);
         });
-
+        var listener = new ActivityListener
+        {
+            ShouldListenTo = _ => true,
+            ActivityStopped = activity =>
+            {
+                foreach (var (key, value) in Baggage.GetBaggage())
+                {
+                    activity.AddTag(key, value);
+                }
+            }
+        };
+        ActivitySource.AddActivityListener(listener);
         services.AddSingleton(TracerProvider.Default.GetTracer(serviceName));
 
         return services;
