@@ -4,6 +4,7 @@ using Marten;
 using Marten.Events;
 using Microsoft.Extensions.DependencyInjection;
 using OpenTelemetry.Trace;
+using System.Diagnostics;
 
 namespace Core.Marten.Subscriptions;
 
@@ -21,22 +22,39 @@ public class MartenEventPublisher: IMartenEventsConsumer
     public async Task ConsumeAsync(IDocumentOperations documentOperations, IReadOnlyList<StreamAction> streamActions,
         CancellationToken ct)
     {
+        var tracer = serviceProvider.GetRequiredService<Tracer>();
+        using var consumeSpan = tracer.StartActiveSpan($"{nameof(MartenEventPublisher)}.{nameof(MartenEventPublisher.ConsumeAsync)}", SpanKind.Internal);
+
         foreach (var @event in streamActions.SelectMany(streamAction => streamAction.Events))
         {
-            using var scope = serviceProvider.CreateScope();
-            var eventBus = scope.ServiceProvider.GetRequiredService<IEventBus>();
-            var tracer = scope.ServiceProvider.GetRequiredService<Tracer>();
+            try
+            {
+                Activity.Current = null;
+                var links = new List<Link>(1);
 
-            using var span = tracer.StartActiveSpan(nameof(MartenEventPublisher), SpanKind.Producer,
-                TracingHelper.Parse(@event.CorrelationId, @event.CausationId));
+                if (consumeSpan is not null)
+                {
+                    links.Add(new Link(consumeSpan.Context));
+                }
 
-            var eventMetadata = new EventMetadata(
-                @event.Id.ToString(),
-                (ulong)@event.Version,
-                (ulong)@event.Sequence
-            );
+                using var span = tracer.StartActiveSpan(nameof(MartenEventPublisher), SpanKind.Producer,
+                    TracingHelper.Parse(@event.CorrelationId, @event.CausationId), links: links);
 
-            await eventBus.Publish(EventEnvelopeFactory.From(@event.Data, eventMetadata), ct);
+                using var scope = serviceProvider.CreateScope();
+                var eventBus = scope.ServiceProvider.GetRequiredService<IEventBus>();
+
+                var eventMetadata = new EventMetadata(
+                    @event.Id.ToString(),
+                    (ulong)@event.Version,
+                    (ulong)@event.Sequence
+                );
+
+                await eventBus.Publish(EventEnvelopeFactory.From(@event.Data, eventMetadata), ct);
+            }
+            finally
+            {
+                Tracer.WithSpan(consumeSpan);
+            }
         }
     }
 }
