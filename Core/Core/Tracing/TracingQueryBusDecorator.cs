@@ -17,6 +17,16 @@ internal sealed class TracingQueryBusDecorator: IQueryBus
     public async Task<TResponse> Send<TQuery, TResponse>(TQuery query) where TQuery : IQuery<TResponse>
     {
         using var span = tracer.StartActiveSpan(typeof(TQuery).Name, SpanKind.Internal);
-        return await decorated.Send<TQuery, TResponse>(query);
+
+        try
+        {
+            return await decorated.Send<TQuery, TResponse>(query);
+        }
+        catch (Exception ex)
+        {
+            span?.SetStatus(Status.Error);
+            span?.RecordException(ex);
+            throw;
+        }
     }
 }

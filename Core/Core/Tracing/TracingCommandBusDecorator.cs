@@ -17,6 +17,16 @@ internal sealed class TracingCommandBusDecorator: ICommandBus
     public async Task Send<TCommand>(TCommand command) where TCommand : ICommand
     {
         using var span = tracer.StartActiveSpan(typeof(TCommand).Name, SpanKind.Internal);
-        await decorated.Send(command);
+
+        try
+        {
+            await decorated.Send(command);
+        }
+        catch(Exception ex)
+        {
+            span?.SetStatus(Status.Error);
+            span?.RecordException(ex);
+            throw;
+        }
     }
 }

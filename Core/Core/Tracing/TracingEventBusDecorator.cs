@@ -18,6 +18,16 @@ internal sealed class TracingEventBusDecorator: IEventBus
     public async Task Publish(IEventEnvelope @event, CancellationToken ct)
     {
         using var span = tracer.StartActiveSpan(@event.Data.GetType().Name, SpanKind.Internal);
-        await decorated.Publish(@event, ct);
+
+        try
+        {
+            await decorated.Publish(@event, ct);
+        }
+        catch (Exception ex)
+        {
+            span?.SetStatus(Status.Error);
+            span?.RecordException(ex);
+            throw;
+        }
     }
 }
