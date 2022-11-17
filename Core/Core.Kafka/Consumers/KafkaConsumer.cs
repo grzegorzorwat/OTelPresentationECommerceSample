@@ -2,12 +2,10 @@ using Confluent.Kafka;
 using Core.Events;
 using Core.Events.External;
 using Core.Kafka.Events;
-using Core.Kafka.Producers;
 using Core.Tracing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Trace;
-using System.Diagnostics;
 using System.Text;
 
 namespace Core.Kafka.Consumers;
@@ -94,6 +92,9 @@ public class KafkaConsumer: IExternalEventConsumer
             var traceParent = Encoding.UTF8.GetString(message.Message.Headers.GetLastBytes("traceparent"));
             using var span = tracer.StartActiveSpan(nameof(KafkaConsumer), SpanKind.Consumer,
                 TracingHelper.FromTraceparent(traceParent));
+            span?.SetAttribute("messaging.system", "kafka");
+            span?.SetAttribute("messaging.destination", message.Topic);
+            span?.SetAttribute("messaging.destination_kind", "topic");
 
             // publish event to internal event bus
             await eventBus.Publish(eventEnvelope, cancellationToken);

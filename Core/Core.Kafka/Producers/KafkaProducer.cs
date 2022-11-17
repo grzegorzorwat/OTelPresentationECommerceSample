@@ -32,6 +32,9 @@ public class KafkaProducer: IExternalEventProducer
     public async Task Publish(IEventEnvelope @event, CancellationToken ct)
     {
         using var span = tracer.StartActiveSpan(nameof(KafkaProducer), SpanKind.Producer);
+        span?.SetAttribute("messaging.system", "kafka");
+        span?.SetAttribute("messaging.destination", config.Topic);
+        span?.SetAttribute("messaging.destination_kind", "topic");
 
         try
         {
@@ -47,7 +50,7 @@ public class KafkaProducer: IExternalEventProducer
                     Value = @event.ToJson(),
                     Headers = new Headers()
                     {
-                        new Header("traceparent", Encoding.UTF8.GetBytes(span.Context.ToTraceparent()!))
+                        new Header("traceparent", Encoding.UTF8.GetBytes(span?.Context.ToTraceparent()!))
                     }
                 }, ct).ConfigureAwait(false);
         }
