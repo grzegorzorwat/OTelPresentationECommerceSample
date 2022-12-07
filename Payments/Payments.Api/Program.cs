@@ -6,6 +6,7 @@ using Core.Marten.OptimisticConcurrency;
 using Core.WebApi.Middlewares.ExceptionHandling;
 using Core.WebApi.OptimisticConcurrency;
 using Core.WebApi.Swagger;
+using Core.WebApi.Tracing;
 using Marten.Exceptions;
 using Microsoft.OpenApi.Models;
 using Payments;
@@ -21,6 +22,7 @@ builder.Services
     .AddKafkaProducer()
     .AddCoreServices()
     .AddPaymentsModule(builder.Configuration)
+    .AddTracing(typeof(Program).Assembly)
     .AddOptimisticConcurrencyMiddleware(
         sp => sp.GetRequiredService<MartenExpectedStreamVersionProvider>().TrySet,
         sp => () => sp.GetRequiredService<MartenNextStreamVersionProvider>().Value?.ToString()
