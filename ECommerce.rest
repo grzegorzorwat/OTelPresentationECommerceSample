@@ -1,0 +1,29 @@
+@carts_url = http://localhost:5500/api/ShoppingCarts
+@cart_id = 
+
+###
+
+POST {{carts_url}} HTTP/1.1
+content-type: application/json
+
+{
+  "clientId": "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+}
+
+###
+
+POST {{carts_url}}/{{cart_id}}/products HTTP/1.1
+content-type: application/json
+
+{
+  "productItem": {
+    "productId": "f6f6a5a4-2840-4397-92fa-46697e0c8260",
+    "quantity": 1
+  }
+}
+
+###
+
+PUT {{carts_url}}/{{cart_id}}/confirmation HTTP/1.1
+content-type: application/json
+If-Match: 2
